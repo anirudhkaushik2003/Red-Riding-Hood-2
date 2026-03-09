@@ -199,9 +199,31 @@ def _parse_tile(tile, row_count, col_count, tile_list, flower_group,
 
 
 class HealthBar:
+    def __init__(self):
+        self.font = pygame.font.Font("AmaticSC-Bold.ttf", 20)
+
     def draw(self, screen, health):
-        pygame.draw.rect(screen, (255, 0, 0), (100, 10, 100 * 4, 20))
-        pygame.draw.rect(screen, (0, 255, 0), (100, 10, health * 4, 20))
+        x, y, w, h = 100, 8, 400, 24
+        # Dark background
+        pygame.draw.rect(screen, (30, 20, 15), (x - 2, y - 2, w + 4, h + 4), border_radius=4)
+        # Red base
+        pygame.draw.rect(screen, (150, 30, 30), (x, y, w, h), border_radius=3)
+        # Green fill
+        fill_w = max(0, int(health * 4))
+        if fill_w > 0:
+            # Color shifts from green to yellow to red based on health
+            if health > 60:
+                col = (50, 200, 50)
+            elif health > 30:
+                col = (220, 180, 30)
+            else:
+                col = (200, 50, 40)
+            pygame.draw.rect(screen, col, (x, y, fill_w, h), border_radius=3)
+        # Border
+        pygame.draw.rect(screen, (80, 70, 55), (x - 2, y - 2, w + 4, h + 4), 2, border_radius=4)
+        # HP text
+        hp_text = self.font.render(f"{max(0, int(health))}/100", True, (255, 255, 255))
+        screen.blit(hp_text, (x + w // 2 - hp_text.get_width() // 2, y + 2))
 
 
 class World:
@@ -499,9 +521,9 @@ class Inventory:
         self.items = _INVENTORY_ITEMS
         self.positions = _ITEM_POSITIONS
         self.selected = 0
-        self.font = pygame.font.Font("AmaticSC-Bold.ttf", 22)
-        self.font_label = pygame.font.Font("AmaticSC-Bold.ttf", 30)
-        self.font_title = pygame.font.Font("AmaticSC-Bold.ttf", 50)
+        self.font = pygame.font.Font("AmaticSC-Bold.ttf", 28)
+        self.font_label = pygame.font.Font("AmaticSC-Bold.ttf", 36)
+        self.font_title = pygame.font.Font("AmaticSC-Bold.ttf", 58)
         self._icons_loaded = False
 
     def _load_icons(self):
@@ -547,7 +569,7 @@ class Inventory:
         grid_w = self.GRID_COLS * (self.CELL + self.PAD) + self.PAD
         grid_h = self.GRID_ROWS * (self.CELL + self.PAD) + self.PAD
         panel_w = grid_w + 40
-        panel_h = grid_h + 100
+        panel_h = grid_h + 130
         px = (SCREEN_WIDTH - panel_w) // 2
         py = (SCREEN_HEIGHT - panel_h) // 2
 
@@ -601,7 +623,7 @@ class Inventory:
         instr = self.font_label.render(hint, True, (200, 200, 180))
         screen.blit(instr,
                     (px + (panel_w - instr.get_width()) // 2,
-                     py + panel_h - 35))
+                     py + panel_h - 50))
 
     def _find_neighbor(self, direction):
         """Find the nearest item index in a direction from current selection."""
@@ -706,12 +728,12 @@ class ShopUI:
     PAD = 6
 
     def __init__(self):
-        self.ft = pygame.font.Font("AmaticSC-Bold.ttf", 48)
-        self.fl = pygame.font.Font("AmaticSC-Bold.ttf", 32)
-        self.fi = pygame.font.Font("AmaticSC-Bold.ttf", 24)
-        self.fc = pygame.font.Font("AmaticSC-Bold.ttf", 20)
-        self.fb = pygame.font.Font("AmaticSC-Bold.ttf", 30)
-        self.fp = pygame.font.Font("AmaticSC-Bold.ttf", 40)
+        self.ft = pygame.font.Font("AmaticSC-Bold.ttf", 56)
+        self.fl = pygame.font.Font("AmaticSC-Bold.ttf", 38)
+        self.fi = pygame.font.Font("AmaticSC-Bold.ttf", 30)
+        self.fc = pygame.font.Font("AmaticSC-Bold.ttf", 26)
+        self.fb = pygame.font.Font("AmaticSC-Bold.ttf", 36)
+        self.fp = pygame.font.Font("AmaticSC-Bold.ttf", 48)
 
         self.sell_items = _SELL_ITEMS
         self.buy_items = _BUY_ITEMS
@@ -924,7 +946,7 @@ class ShopUI:
 
         # Close hint
         hint = self.fc.render("ESC to close", True, self.TEXT_DIM)
-        screen.blit(hint, (px + pw - hint.get_width() - 10, py + ph - 20))
+        screen.blit(hint, (px + pw - hint.get_width() - 12, py + ph - 35))
 
         # Amount prompt overlay
         if self.prompt_active:

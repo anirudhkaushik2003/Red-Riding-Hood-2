@@ -290,7 +290,12 @@ class Enemy(pygame.sprite.Sprite):
             if (tile[2] and tile[1].colliderect(
                     self.rect.x + self.dx, self.rect.y,
                     self.width, self.height) and not self.jumped):
-                self.vel_y -= 15
+                # Scale jump force to obstacle height
+                step_height = self.rect.bottom - tile[1].top
+                if 0 < step_height <= TILE_SIZE:
+                    self.vel_y = -12
+                else:
+                    self.vel_y = -15
                 self.jumped = True
 
     def _play_attack_sound(self):
@@ -312,12 +317,20 @@ class Enemy(pygame.sprite.Sprite):
 
     def _draw_healthbar(self, screen):
         offset_x = 15 if self.direction == 1 else 40
-        pygame.draw.rect(screen, RED,
-                         (self.rect.x + offset_x, self.rect.y - 7,
-                          int(self.max_health // 4), 10))
-        pygame.draw.rect(screen, GREEN,
-                         (self.rect.x + offset_x, self.rect.y - 7,
-                          int(self.health // 4), 10))
+        bx = self.rect.x + offset_x
+        by = self.rect.y - 10
+        bw = int(self.max_health // 4)
+        bh = 8
+        # Background
+        pygame.draw.rect(screen, (20, 15, 10), (bx - 1, by - 1, bw + 2, bh + 2), border_radius=2)
+        # Red base
+        pygame.draw.rect(screen, (150, 30, 30), (bx, by, bw, bh), border_radius=2)
+        # Green fill
+        fill = max(0, int(self.health // 4))
+        if fill > 0:
+            pygame.draw.rect(screen, (50, 200, 50), (bx, by, fill, bh), border_radius=2)
+        # Border
+        pygame.draw.rect(screen, (60, 50, 40), (bx - 1, by - 1, bw + 2, bh + 2), 1, border_radius=2)
 
 
 class Minotaur(Enemy):
@@ -437,7 +450,11 @@ class Wizard(Enemy):
             if (tile[2] and tile[1].colliderect(
                     self.rect.x + self.dx, self.rect.y,
                     self.width, self.height) and not self.jumped):
-                self.vel_y -= 20
+                step_height = self.rect.bottom - tile[1].top
+                if 0 < step_height <= TILE_SIZE:
+                    self.vel_y = -10
+                else:
+                    self.vel_y = -20
                 self.jumped = True
 
     def _play_attack_sound(self):
@@ -484,12 +501,16 @@ class Eye(Enemy):
 
     def _draw_healthbar(self, screen):
         offset_x = 57 if self.direction == 1 else 40
-        pygame.draw.rect(screen, RED,
-                         (self.rect.x + offset_x, self.rect.y - 7,
-                          int(self.max_health // 4), 10))
-        pygame.draw.rect(screen, GREEN,
-                         (self.rect.x + offset_x, self.rect.y - 7,
-                          int(self.health // 4), 10))
+        bx = self.rect.x + offset_x
+        by = self.rect.y - 10
+        bw = int(self.max_health // 4)
+        bh = 8
+        pygame.draw.rect(screen, (20, 15, 10), (bx - 1, by - 1, bw + 2, bh + 2), border_radius=2)
+        pygame.draw.rect(screen, (150, 30, 30), (bx, by, bw, bh), border_radius=2)
+        fill = max(0, int(self.health // 4))
+        if fill > 0:
+            pygame.draw.rect(screen, (50, 200, 50), (bx, by, fill, bh), border_radius=2)
+        pygame.draw.rect(screen, (60, 50, 40), (bx - 1, by - 1, bw + 2, bh + 2), 1, border_radius=2)
 
     def _obstacle_jump(self, world):
         for tile in world.tile_list:

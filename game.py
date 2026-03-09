@@ -189,8 +189,13 @@ class Game:
         self.dummy_flower = ScoreFlower(20, TILE_SIZE)
         self.dummy_arrow = ArrowCount(20, TILE_SIZE + 40)
 
-        self.text_x = TILE_SIZE
-        self.text_y = 180
+        # Tutorial text positions (3 sections at different world locations)
+        self.tut1_x = TILE_SIZE * 2
+        self.tut1_y = 180
+        self.tut2_x = TILE_SIZE * 15
+        self.tut2_y = 180
+        self.tut3_x = TILE_SIZE * 30
+        self.tut3_y = 180
 
         self.powerup_iterations = []
         self.set_iterations = []
@@ -219,14 +224,20 @@ class Game:
         self.state = STATE_PLAYING
 
     def save_game(self):
+        # Save absolute world position (screen pos - accumulated scroll)
         data = {
-            'player_x': self.player.rect.x,
-            'player_y': self.player.rect.y,
+            'player_world_x': self.player.rect.x - self.total_scroll_x,
+            'player_world_y': self.player.rect.y - self.total_scroll_y,
+            'total_scroll_x': self.total_scroll_x,
+            'total_scroll_y': self.total_scroll_y,
             'player_health': self.player.health,
             'player_flower_count': self.player.flower_count,
             'player_num_of_arrows': self.player.num_of_arrows,
             'player_direction': self.player.direction,
             'player_powerups': self.player.powerup_index,
+            'player_coins': self.player.coins,
+            'player_potions': self.player.health_potions,
+            'player_hides': self.player.hides,
             'game_mode': self.game_mode,
             'difficulty': self.difficulty,
         }
@@ -241,13 +252,33 @@ class Game:
         self.game_mode = data.get('game_mode', MODE_CLASSIC)
         self.difficulty = data.get('difficulty', DIFF_HARD)
         self._init_game()
-        self.player.rect.x = data['player_x']
-        self.player.rect.y = data['player_y']
+        # Place player at spawn position, then scroll world to match saved state
+        self.player.rect.x = TILE_SIZE + 10
+        self.player.rect.y = SCREEN_HEIGHT - 260 + 2
         self.player.health = data['player_health']
         self.player.flower_count = data['player_flower_count']
         self.player.num_of_arrows = data['player_num_of_arrows']
         self.player.direction = data['player_direction']
-        self.player.powerup_index = data['player_powerups']
+        self.player.powerup_index = data.get('player_powerups', [])
+        self.player.coins = data.get('player_coins', 0)
+        self.player.health_potions = data.get('player_potions', 0)
+        self.player.hides = data.get('player_hides', {'minotaur': 0, 'wizard': 0, 'eye': 0})
+        # Compute how much scroll is needed to place player at saved world position
+        saved_world_x = data['player_world_x']
+        needed_scroll = self.player.rect.x - saved_world_x
+        # Apply scroll to entire world
+        for tile in self.world.tile_list:
+            tile[1].x += int(needed_scroll)
+            tile[1].y += 0
+        for group in [self.flower_group, self.minotaur_group, self.wizard_group,
+                      self.eye_group, self.powerup_group, self.shop_group,
+                      self.npc_group]:
+            for entity in group:
+                entity.rect.x += int(needed_scroll)
+        self.total_scroll_x = needed_scroll
+        self.total_scroll_y = 0
+        if self.granny_house_x >= 0:
+            self.granny_house_x += int(needed_scroll)
         return True
 
     def _draw_text(self, text, font, color, x, y):
@@ -652,15 +683,23 @@ class Game:
         for shop in self.shop_group:
             shop.update(self.screen_scroll, self.y_scroll, self.screen)
 
-        # Tutorial text (world-space, scrolls with terrain)
-        self.text_x += self.screen_scroll
-        self.text_y += self.y_scroll
-        self._draw_text("Collect flowers for granny", self.font, WHITE, self.text_x, self.text_y)
-        self._draw_text("Collect flowers using E", self.font, WHITE, self.text_x, self.text_y + 40)
-        self._draw_text(
-            "Plant flowers using F and consume them again to heal",
-            self.font, WHITE, self.text_x, self.text_y + 80
-        )
+        # Tutorial text (3 sections at different world positions)
+        self.tut1_x += self.screen_scroll
+        self.tut1_y += self.y_scroll
+        self.tut2_x += self.screen_scroll
+        self.tut2_y += self.y_scroll
+        self.tut3_x += self.screen_scroll
+        self.tut3_y += self.y_scroll
+        # Section 1: Movement (at start)
+        self._draw_text("Use Arrow Keys to move", self.font, WHITE, self.tut1_x, self.tut1_y)
+        self._draw_text("SPACE to jump", self.font, WHITE, self.tut1_x, self.tut1_y + 40)
+        # Section 2: Combat (a bit further)
+        self._draw_text("Q for melee attack", self.font, WHITE, self.tut2_x, self.tut2_y)
+        self._draw_text("W to shoot arrows", self.font, WHITE, self.tut2_x, self.tut2_y + 40)
+        # Section 3: Flowers (further ahead)
+        self._draw_text("Collect flowers for Granny", self.font, WHITE, self.tut3_x, self.tut3_y)
+        self._draw_text("Press E near flowers to pick up", self.font, WHITE, self.tut3_x, self.tut3_y + 40)
+        self._draw_text("Plant with F, then E to heal", self.font, WHITE, self.tut3_x, self.tut3_y + 80)
 
         # --- LAYER 3: Ground items (flowers, powerups) ---
         for flower in self.flower_group:
@@ -830,10 +869,15 @@ class Game:
             if inte >= len(self.powerup_iterations):
                 break
             if self.set_iterations[inte]:
-                pygame.draw.rect(
-                    self.screen, CYAN,
-                    (55, self.c_list[inte], self.powerup_iterations[inte] / 10, 15)
-                )
+                bx, by = 55, self.c_list[inte]
+                bw = self.powerup_iterations[inte] / 10
+                bh = 12
+                pygame.draw.rect(self.screen, (20, 15, 10),
+                                 (bx - 1, by - 1, 102, bh + 2), border_radius=3)
+                pygame.draw.rect(self.screen, CYAN,
+                                 (bx, by, bw, bh), border_radius=3)
+                pygame.draw.rect(self.screen, (60, 50, 40),
+                                 (bx - 1, by - 1, 102, bh + 2), 1, border_radius=3)
             if self.powerup_iterations[inte] > 0:
                 self.powerup_iterations[inte] -= 1
             if self.powerup_iterations[inte] == 0:
