@@ -1,0 +1,10 @@
+__pycache__/
+build/
+dist/
+*.spec
+*.pyc
+savegame.json
+.claude/
+Houses_Pack/
+Houses_Pack.zip
+Red-Riding-Hood-main (2).zip
